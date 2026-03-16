@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "alcohol-tracker",
-    "slug": "alcohol-tracker",
+    "slug": "alcohol-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -43,6 +43,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6683a801-9f03-4851-9667-dbc59e0cd13a"
+      }
+    },
+    "owner": "rahul999s-organization"
   }
 }

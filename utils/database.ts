@@ -62,8 +62,11 @@ export const addDrinkLog = (userId: number, type: string, volumeMl: number, abv:
 };
 
 export const getUserDrinks = (userId: number) => {
-  const statement = db.prepareSync('SELECT * FROM drink_logs WHERE user_id = ? ORDER BY timestamp ASC');
-  return statement.executeSync<any[]>([userId]);
+  // getAllSync directly returns an array of the resulting rows
+  return db.getAllSync<any>(
+    'SELECT * FROM drink_logs WHERE user_id = ? ORDER BY timestamp ASC', 
+    [userId]
+  );
 };
 
 export const clearUserDrinks = (userId: number) => {

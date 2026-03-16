@@ -3,7 +3,7 @@ import { View, Text, TextInput, Button, StyleSheet, TouchableOpacity } from 'rea
 import { useDrinkStore } from '../store/useDrinkStore';
 
 export default function ProfileScreen() {
-  const { userHeight, userWeight, userAge, userSex, setUserProfile } = useDrinkStore();
+  const { userHeight, userWeight, userAge, userSex, setUserProfile, showToast } = useDrinkStore();
   
   const [heightInput, setHeightInput] = useState(userHeight);
   const [weightInput, setWeightInput] = useState(userWeight);
@@ -12,7 +12,7 @@ export default function ProfileScreen() {
 
   const handleSave = () => {
     setUserProfile(heightInput, weightInput, ageInput, sexInput);
-    alert('Full physiological profile saved securely.');
+    showToast('Full physiological profile saved securely.');
   };
 
   return (

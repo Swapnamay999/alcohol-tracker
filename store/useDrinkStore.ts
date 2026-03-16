@@ -15,6 +15,8 @@ interface DrinkState {
   addPreset: (newPreset: any) => void;
   updatePreset: (id: string, updatedData: any) => void;
   resetPresets: () => void;
+  toastMessage: string | null;
+  showToast: (message: string) => void;
 }
 
 export const useDrinkStore = create<DrinkState>()((set) => ({
@@ -39,6 +41,15 @@ export const useDrinkStore = create<DrinkState>()((set) => ({
     set((state) => ({
       presets: state.presets.map(p => p.id === id ? { ...p, ...updatedData } : p)
     })),
+    toastMessage: null,
+
+  showToast: (message) => {
+    set({ toastMessage: message });
+    // Automatically hide the toast after 3 seconds
+    setTimeout(() => {
+      set({ toastMessage: null });
+    }, 3000);
+  },
     
   resetPresets: () => set({ presets: defaultBeverages }), // Restore factory defaults
 }));

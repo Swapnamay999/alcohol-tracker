@@ -2,29 +2,27 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Drawer } from 'expo-router/drawer';
 import { GluestackUIProvider } from '@gluestack-ui/themed';
 import { config } from '@gluestack-ui/config'; // Default theme
+import ToastOverlay from '../components/ToastOverlay';
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <GluestackUIProvider config={config}>
-        <Drawer
-          screenOptions={{
-            headerStyle: { backgroundColor: '#242424' },
-            headerTintColor: '#00FF00', // Neon accent
-            drawerStyle: { backgroundColor: '#000000' },
-            drawerActiveTintColor: '#00FF00',
-            drawerInactiveTintColor: '#A0A0A0',
-          }}
-        >
-          <Drawer.Screen 
-            name="index" 
-            options={{ drawerLabel: 'Drink Logger', title: 'Log Consumption' }} 
+        <Drawer>
+          <Drawer.Screen
+            name="dashboard"
+            options={{ drawerLabel: 'Live BAC Dashboard', title: 'Current Status' }}
           />
-          <Drawer.Screen 
-            name="profile" 
-            options={{ drawerLabel: 'User Physiology', title: 'Body Metrics' }} 
+          <Drawer.Screen
+            name="index"
+            options={{ drawerLabel: 'Log Drinks', title: 'Add Beverage' }}
+          />
+          <Drawer.Screen
+            name="profile"
+            options={{ drawerLabel: 'User Physiology', title: 'Body Metrics' }}
           />
         </Drawer>
+        <ToastOverlay />
       </GluestackUIProvider>
     </GestureHandlerRootView>
   );

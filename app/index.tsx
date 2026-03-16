@@ -3,7 +3,7 @@ import { ScrollView, View, Text, Button, StyleSheet, TouchableOpacity, Modal, Te
 import { useDrinkStore } from '../store/useDrinkStore';
 
 export default function DrinkLoggerScreen() {
-  const { addDrink, presets, addPreset, updatePreset, resetPresets } = useDrinkStore();
+  const { addDrink, presets, addPreset, updatePreset, resetPresets, showToast } = useDrinkStore();
   
   const [selectedDrink, setSelectedDrink] = useState(presets[0]);
   const [count, setCount] = useState(1);
@@ -22,7 +22,7 @@ export default function DrinkLoggerScreen() {
 
   const handleLogDrink = () => {
     addDrink(selectedDrink.type, selectedDrink.volumeMl, selectedDrink.abv, count);
-    alert(`${count}x ${selectedDrink.name} logged securely.`);
+    showToast(`${count}x ${selectedDrink.name} logged securely.`);
     setCount(1);
   };
 

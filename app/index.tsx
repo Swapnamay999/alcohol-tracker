@@ -1,171 +1,104 @@
-import React, { useState } from 'react';
-import { ScrollView, View, Text, Button, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { Redirect, router } from 'expo-router'; 
 import { useDrinkStore } from '../store/useDrinkStore';
+import { calculateBAC } from '../utils/bacCalculator';
+import LiquidFill from '../components/LiquidFill';
 
-export default function DrinkLoggerScreen() {
-  const { addDrink, presets, addPreset, updatePreset, resetPresets, showToast } = useDrinkStore();
-  
-  const [selectedDrink, setSelectedDrink] = useState(presets[0]);
-  const [count, setCount] = useState(1);
+export default function DashboardScreen() {
+  const { drinksLogged, userHeight, userWeight, userAge, userSex } = useDrinkStore();
+  const [currentBac, setCurrentBac] = useState(0.000);
 
-  // Modal State
-  const [isModalVisible, setModalVisible] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  
-  // Form State
-  const [formId, setFormId] = useState('');
-  const [formName, setFormName] = useState('');
-  const [formType, setFormType] = useState('');
-  const [formVolume, setFormVolume] = useState('');
-  const [formAbv, setFormAbv] = useState('');
-  const [formIcon, setFormIcon] = useState('🍹');
+  const isProfileComplete = userHeight && userWeight && userAge;
 
-  const handleLogDrink = () => {
-    addDrink(selectedDrink.type, selectedDrink.volumeMl, selectedDrink.abv, count);
-    showToast(`${count}x ${selectedDrink.name} logged securely.`);
-    setCount(1);
-  };
+  // 1. All Hooks MUST be declared before any early returns
+  useEffect(() => {
+    // Safety check so it doesn't try to calculate with missing data
+    if (!isProfileComplete) return; 
 
-  const openAddModal = () => {
-    setIsEditing(false);
-    setFormId(Date.now().toString()); // Generate unique ID
-    setFormName('');
-    setFormType('Custom');
-    setFormVolume('');
-    setFormAbv('');
-    setFormIcon('🍹');
-    setModalVisible(true);
-  };
-
-  const openEditModal = (drink: any) => {
-    setIsEditing(true);
-    setFormId(drink.id);
-    setFormName(drink.name);
-    setFormType(drink.type);
-    setFormVolume(drink.volumeMl.toString());
-    setFormAbv(drink.abv.toString());
-    setFormIcon(drink.icon);
-    setModalVisible(true);
-  };
-
-  const savePreset = () => {
-    const presetData = {
-      id: formId,
-      name: formName,
-      type: formType,
-      volumeMl: parseFloat(formVolume),
-      abv: parseFloat(formAbv),
-      icon: formIcon
+    const updateBac = () => {
+      const bac = calculateBAC(
+        drinksLogged, 
+        parseFloat(userHeight), 
+        parseFloat(userWeight), 
+        parseFloat(userAge), 
+        userSex
+      );
+      setCurrentBac(bac);
     };
 
-    if (isEditing) {
-      updatePreset(formId, presetData);
-      if (selectedDrink.id === formId) setSelectedDrink(presetData);
+    updateBac(); 
+    const interval = setInterval(updateBac, 60000); 
+    return () => clearInterval(interval);
+  }, [drinksLogged, userHeight, userWeight, userAge, userSex, isProfileComplete]);
+
+  // 2. Instant Redirection Logic (Now safely AFTER the hooks)
+  if (!isProfileComplete) {
+    return <Redirect href="/profile" />;
+  }
+
+  // 3. Aggregate Drinks by Type
+  const drinkSummary = drinksLogged.reduce((acc: any[], drink: any) => {
+    const existing = acc.find((d: any) => d.type === drink.type);
+    if (existing) {
+      existing.count += drink.count;
     } else {
-      addPreset(presetData);
+      acc.push({ ...drink });
     }
-    setModalVisible(false);
-  };
+    return acc;
+  }, []);
+  
+  const summaryString = drinkSummary.map(d => `${d.count}x ${d.name || d.type}`).join(' • ') || "No drinks logged today.";
+
+  let zoneText = "Sober / Baseline";
+  let themeColor = "#00FF00"; 
+  let warningMessage = "You are currently within safe limits.";
+
+  if (currentBac >= 0.01 && currentBac <= 0.05) {
+    zoneText = "Social Zone"; themeColor = "#00BFFF"; warningMessage = "Mild relaxation. Safe, but alcohol is present.";
+  } else if (currentBac > 0.05 && currentBac <= 0.10) {
+    zoneText = "Impaired Zone"; themeColor = "#FFBF00"; warningMessage = "Motor skills and judgment are noticeably impaired. Do not drive.";
+  } else if (currentBac > 0.10 && currentBac <= 0.20) {
+    zoneText = "Risky Zone"; themeColor = "#FF4444"; warningMessage = "Significant intoxication. Loss of physical control. Seek water and stop drinking.";
+  } else if (currentBac > 0.20) {
+    zoneText = "Danger / Toxicity"; themeColor = "#8B0000"; warningMessage = "CRITICAL: Severe risk of alcohol poisoning, blackout, or loss of consciousness.";
+  }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.headerTitle}>Select Beverage</Text>
-      
-      <View style={styles.carouselContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {presets.map((drink) => {
-            const isSelected = selectedDrink?.id === drink.id;
-            return (
-              <TouchableOpacity 
-                key={drink.id} 
-                style={[styles.presetCard, isSelected && styles.presetCardSelected]}
-                onPress={() => setSelectedDrink(drink)}
-                onLongPress={() => openEditModal(drink)} // Trigger Edit
-                delayLongPress={500}
-              >
-                <Text style={styles.presetIcon}>{drink.icon}</Text>
-                <Text style={[styles.presetName, isSelected && styles.textSelected]}>{drink.name}</Text>
-                <Text style={styles.presetDetails}>{drink.volumeMl}ml • {drink.abv}%</Text>
-              </TouchableOpacity>
-            );
-          })}
-          
-          {/* Add Custom Drink Card */}
-          <TouchableOpacity style={styles.addCard} onPress={openAddModal}>
-            <Text style={styles.addIcon}>+</Text>
-            <Text style={styles.presetName}>Add Custom</Text>
-          </TouchableOpacity>
-        </ScrollView>
+    <ScrollView style={styles.container}>
+      <View style={[styles.bacCircle, { borderColor: themeColor }]}>
+        <LiquidFill bac={currentBac} color={themeColor} />
+        <Text style={styles.bacLabel}>Current BAC</Text>
+        <Text style={[styles.bacValue, { color: themeColor }]}>{currentBac.toFixed(3)}%</Text>
+        <Text style={[styles.zoneText, { color: themeColor }]}>{zoneText}</Text>
       </View>
 
-      <View style={styles.actionCard}>
-        <Text style={styles.selectedTitle}>{selectedDrink?.name || 'Select a drink'}</Text>
-        <View style={styles.counterRow}>
-          <TouchableOpacity style={styles.counterButton} onPress={() => setCount(Math.max(1, count - 1))}>
-            <Text style={styles.counterButtonText}>-</Text>
-          </TouchableOpacity>
-          <Text style={styles.counterValue}>{count}</Text>
-          <TouchableOpacity style={styles.counterButton} onPress={() => setCount(count + 1)}>
-            <Text style={styles.counterButtonText}>+</Text>
-          </TouchableOpacity>
-        </View>
-        <Button title={`Log ${count} Drink(s)`} color="#00FF00" onPress={handleLogDrink} disabled={!selectedDrink} />
+      <View style={[styles.feedbackCard, { borderLeftColor: themeColor }]}>
+        <Text style={styles.feedbackTitle}>Clinical Status</Text>
+        <Text style={styles.feedbackText}>{warningMessage}</Text>
+        <Text style={styles.statsText}>{summaryString}</Text>
       </View>
 
-      {/* Edit / Add Modal */}
-      <Modal visible={isModalVisible} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{isEditing ? 'Edit Preset' : 'Create Custom Drink'}</Text>
-            
-            <TextInput style={styles.input} placeholder="Name (e.g., Craft IPA)" placeholderTextColor="#666" value={formName} onChangeText={setFormName} />
-            <TextInput style={styles.input} placeholder="Icon (e.g., 🍺)" placeholderTextColor="#666" value={formIcon} onChangeText={setFormIcon} />
-            <TextInput style={styles.input} placeholder="Volume in ml (e.g., 330)" placeholderTextColor="#666" keyboardType="numeric" value={formVolume} onChangeText={setFormVolume} />
-            <TextInput style={styles.input} placeholder="ABV % (e.g., 6.5)" placeholderTextColor="#666" keyboardType="numeric" value={formAbv} onChangeText={setFormAbv} />
-            
-            <View style={styles.modalButtons}>
-              <Button title="Cancel" color="#FF4444" onPress={() => setModalVisible(false)} />
-              <Button title="Save" color="#00FF00" onPress={savePreset} />
-            </View>
-
-            {/* Global Reset Button */}
-            <TouchableOpacity style={styles.resetButton} onPress={() => { resetPresets(); setModalVisible(false); }}>
-              <Text style={styles.resetText}>Reset All to Factory Defaults</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </View>
+      <TouchableOpacity 
+        style={[styles.logDrinkBtn, { backgroundColor: themeColor }]} 
+        onPress={() => router.push('/logger')}
+      >
+        <Text style={styles.logDrinkBtnText}>+ Log a Beverage</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  // ... (keep previous styles: container, headerTitle, carouselContainer, presetCard, presetCardSelected, presetIcon, presetName, presetDetails, textSelected, actionCard, selectedTitle, counterRow, counterButton, counterButtonText, counterValue)
-  container: { flex: 1, backgroundColor: '#000000', paddingVertical: 20 },
-  headerTitle: { color: '#FFF', fontSize: 22, fontWeight: 'bold', paddingHorizontal: 20, marginBottom: 15 },
-  carouselContainer: { height: 160, marginBottom: 20 },
-  presetCard: { backgroundColor: '#242424', padding: 15, borderRadius: 12, marginHorizontal: 10, width: 140, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
-  presetCardSelected: { borderColor: '#00FF00', backgroundColor: '#1A331A' },
-  presetIcon: { fontSize: 40, marginBottom: 10 },
-  presetName: { color: '#FFF', fontSize: 14, fontWeight: 'bold', textAlign: 'center' },
-  presetDetails: { color: '#A0A0A0', fontSize: 12, marginTop: 5 },
-  textSelected: { color: '#00FF00' },
-  actionCard: { backgroundColor: '#242424', marginHorizontal: 20, padding: 20, borderRadius: 12, alignItems: 'center' },
-  selectedTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
-  counterRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  counterButton: { backgroundColor: '#333', width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center' },
-  counterButtonText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
-  counterValue: { color: '#FFF', fontSize: 32, fontWeight: 'bold', marginHorizontal: 30 },
-  
-  // New Styles
-  addCard: { backgroundColor: '#111', padding: 15, borderRadius: 12, marginHorizontal: 10, width: 140, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#333', borderStyle: 'dashed' },
-  addIcon: { color: '#666', fontSize: 40, marginBottom: 10 },
-  
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#242424', padding: 20, borderRadius: 15 },
-  modalTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
-  input: { backgroundColor: '#000', color: '#FFF', padding: 12, borderRadius: 8, marginBottom: 10, borderWidth: 1, borderColor: '#333' },
-  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  resetButton: { marginTop: 20, padding: 10, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#333' },
-  resetText: { color: '#FF4444', fontSize: 14 }
+  container: { flex: 1, backgroundColor: '#000000', padding: 20 },
+  bacCircle: { height: 300, width: 300, borderRadius: 150, borderWidth: 8, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginTop: 40, marginBottom: 40, backgroundColor: '#111' },
+  bacLabel: { color: '#A0A0A0', fontSize: 18, textTransform: 'uppercase', letterSpacing: 2 },
+  bacValue: { fontSize: 64, fontWeight: 'bold', marginVertical: 10 },
+  zoneText: { fontSize: 20, fontWeight: '600' },
+  feedbackCard: { backgroundColor: '#242424', padding: 20, borderRadius: 12, borderLeftWidth: 6, marginBottom: 20 },
+  feedbackTitle: { color: '#FFF', fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+  feedbackText: { color: '#E0E0E0', fontSize: 16, lineHeight: 24, marginBottom: 15 },
+  statsText: { color: '#A0A0A0', fontSize: 14, fontStyle: 'italic' },
+  logDrinkBtn: { padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
+  logDrinkBtnText: { color: '#000', fontSize: 18, fontWeight: 'bold' }
 });

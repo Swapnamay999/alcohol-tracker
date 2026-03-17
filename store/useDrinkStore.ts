@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import defaultBeverages from '../constants/beverages.json';
-import { addDrinkLog, getUserDrinks } from '../utils/database';
+import { addDrinkLog, getUserDrinks,updateDrinkLogCount, clearUserDrinks } from '../utils/database';
 
 interface DrinkState {
   activeUserId: number | null; // Tracks the currently selected user in the DB
@@ -23,6 +23,8 @@ interface DrinkState {
   updatePreset: (id: string, updatedData: any) => void;
   resetPresets: () => void;
   showToast: (message: string) => void;
+  updateDrinkCount: (time: string, newCount: number) => void;
+  resetDrinks: () => void;
 }
 
 export const useDrinkStore = create<DrinkState>()((set, get) => ({
@@ -83,5 +85,32 @@ export const useDrinkStore = create<DrinkState>()((set, get) => ({
   showToast: (message) => {
     set({ toastMessage: message });
     setTimeout(() => set({ toastMessage: null }), 3000);
+  },
+  updateDrinkCount: (time, newCount) => {
+    const state = get();
+    if (!state.activeUserId) return;
+
+    // 1. Update SQLite permanent storage
+    updateDrinkLogCount(state.activeUserId, time, newCount);
+
+    // 2. Update active UI state
+    set({
+      drinksLogged: newCount <= 0 
+        ? state.drinksLogged.filter((drink) => drink.time !== time)
+        : state.drinksLogged.map((drink) => 
+            drink.time === time ? { ...drink, count: newCount } : drink
+          )
+    });
+  },
+
+  resetDrinks: () => {
+    const state = get();
+    if (!state.activeUserId) return;
+
+    // 1. Clear SQLite permanent storage for this user
+    clearUserDrinks(state.activeUserId);
+
+    // 2. Update active UI state
+    set({ drinksLogged: [] });
   },
 }));

@@ -73,3 +73,18 @@ export const clearUserDrinks = (userId: number) => {
   const statement = db.prepareSync('DELETE FROM drink_logs WHERE user_id = ?');
   statement.executeSync([userId]);
 };
+
+export const updateDrinkLogCount = (userId: number, timestamp: string, newCount: number) => {
+  const statement = db.prepareSync(
+    'UPDATE drink_logs SET count = $newCount WHERE user_id = $userId AND timestamp = $timestamp'
+  );
+  try {
+    statement.executeSync({ 
+      $newCount: newCount, 
+      $userId: userId, 
+      $timestamp: timestamp 
+    });
+  } finally {
+    statement.finalizeSync();
+  }
+};

@@ -5,11 +5,13 @@ import { useDrinkStore } from '../store/useDrinkStore';
 import { calculateBAC } from '../utils/bacCalculator';
 import LiquidFill from '../components/LiquidFill';
 import InfoModal from '../components/InfoModal';
+import EditDrinksModal from '../components/EditDrinksModal';
 
 export default function DashboardScreen() {
   const { drinksLogged, userHeight, userWeight, userAge, userSex } = useDrinkStore();
   const [currentBac, setCurrentBac] = useState(0.000);
   const [isInfoVisible, setInfoVisible] = useState(false);
+  const [isEditModalVisible, setEditModalVisible] = useState(false);
 
   const isProfileComplete = userHeight && userWeight && userAge;
 
@@ -65,7 +67,7 @@ export default function DashboardScreen() {
   return (
     <View style={styles.mainWrapper}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        
+
         <View style={[styles.bacCircle, { borderColor: themeColor }]}>
           <LiquidFill bac={currentBac} color={themeColor} />
           <View style={styles.textOverlay} pointerEvents="none">
@@ -76,7 +78,15 @@ export default function DashboardScreen() {
         </View>
 
         <View style={[styles.feedbackCard, { borderLeftColor: themeColor }]}>
-          <Text style={styles.feedbackTitle}>Clinical Status</Text>
+          <View style={styles.feedbackHeaderRow}>
+            <Text style={styles.feedbackTitle}>Clinical Status</Text>
+            <Pressable
+              onPress={() => setEditModalVisible(true)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.editIconText}>✎</Text>
+            </Pressable>
+          </View>
           <Text style={styles.feedbackText}>{warningMessage}</Text>
           <Text style={styles.statsText}>{summaryString}</Text>
         </View>
@@ -87,13 +97,17 @@ export default function DashboardScreen() {
         >
           <Text style={styles.logDrinkBtnText}>+ Log a Beverage</Text>
         </TouchableOpacity>
-        
+
         <InfoModal visible={isInfoVisible} onClose={() => setInfoVisible(false)} />
+        <EditDrinksModal
+          visible={isEditModalVisible}
+          onClose={() => setEditModalVisible(false)}
+        />
       </ScrollView>
 
       {/* Moved outside the ScrollView to anchor to the top right of the page screen */}
-      <Pressable 
-        style={styles.pageInfoButton} 
+      <Pressable
+        style={styles.pageInfoButton}
         onPress={() => setInfoVisible(true)}
         hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
       >
@@ -104,21 +118,21 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  mainWrapper: { 
-    flex: 1, 
-    backgroundColor: '#000000' 
+  mainWrapper: {
+    flex: 1,
+    backgroundColor: '#000000'
   },
-  scrollContent: { 
+  scrollContent: {
     padding: 20,
     paddingTop: 60, // Added padding so the bacCircle clears the absolute top button
   },
   pageInfoButton: {
     position: 'absolute',
-    top: 20,    
-    right: 20,  
+    top: 20,
+    right: 20,
     zIndex: 999,
     elevation: 10,
-    backgroundColor: 'rgba(255,255,255,0.1)', 
+    backgroundColor: 'rgba(255,255,255,0.1)',
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -127,21 +141,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333'
   },
-  infoButtonText: { 
-    color: '#00FF00', 
+  infoButtonText: {
+    color: '#00FF00',
     fontSize: 22,
     fontWeight: 'bold',
   },
-  bacCircle: { 
-    height: 300, 
-    width: 300, 
-    borderRadius: 150, 
-    borderWidth: 8, 
-    alignSelf: 'center', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    marginTop: 10, 
-    marginBottom: 40, 
+  bacCircle: {
+    height: 300,
+    width: 300,
+    borderRadius: 150,
+    borderWidth: 8,
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    marginBottom: 40,
     backgroundColor: '#111',
     overflow: 'hidden' // Keeps liquid inside the circle
   },
@@ -150,6 +164,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
+  },
+  feedbackHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  editIconText: {
+    color: '#00FF00',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   bacLabel: { color: '#A0A0A0', fontSize: 18, textTransform: 'uppercase', letterSpacing: 2 },
   bacValue: { fontSize: 64, fontWeight: 'bold', marginVertical: 10 },

@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import { ScrollView, View, Text, Button, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { Button, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useDrinkStore } from '../store/useDrinkStore';
 
 import { router } from 'expo-router';
 
 export default function DrinkLoggerScreen() {
-  const { addDrink, presets, addPreset, updatePreset, resetPresets, showToast } = useDrinkStore();
-
+  const { addDrink, presets, addPreset, updatePreset, resetPresets, deletePreset, showToast } = useDrinkStore();
   const [selectedDrink, setSelectedDrink] = useState(presets[0]);
   const [count, setCount] = useState(1);
 
   // Modal State
   const [isModalVisible, setModalVisible] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [formIsCustom, setFormIsCustom] = useState(false);
 
   // Form State
   const [formId, setFormId] = useState('');
@@ -23,19 +23,20 @@ export default function DrinkLoggerScreen() {
   const [formIcon, setFormIcon] = useState('🍹');
 
   const handleLogDrink = () => {
-    addDrink(selectedDrink.type, selectedDrink.volumeMl, selectedDrink.abv, count);
+    addDrink(selectedDrink.name, selectedDrink.volumeMl, selectedDrink.abv, count);
     showToast(`${count}x ${selectedDrink.name} logged securely.`);
     setCount(1);
   };
 
   const openAddModal = () => {
     setIsEditing(false);
-    setFormId(Date.now().toString()); // Generate unique ID
+    setFormId(Date.now().toString());
     setFormName('');
     setFormType('Custom');
     setFormVolume('');
     setFormAbv('');
     setFormIcon('🍹');
+    setFormIsCustom(true); // New drinks are always custom
     setModalVisible(true);
   };
 
@@ -47,6 +48,7 @@ export default function DrinkLoggerScreen() {
     setFormVolume(drink.volumeMl.toString());
     setFormAbv(drink.abv.toString());
     setFormIcon(drink.icon);
+    setFormIsCustom(!!drink.isCustom); // Track if it's a custom preset
     setModalVisible(true);
   };
 
@@ -111,7 +113,13 @@ export default function DrinkLoggerScreen() {
             <Text style={styles.counterButtonText}>+</Text>
           </TouchableOpacity>
         </View>
-        <Button title={`Log ${count} Drink(s)`} color="#00FF00" onPress={handleLogDrink} disabled={!selectedDrink} />
+        <TouchableOpacity 
+          style={[styles.logButton, !selectedDrink && styles.disabledButton]} 
+          onPress={handleLogDrink} 
+          disabled={!selectedDrink}
+        >
+          <Text style={styles.logButtonText}>Log {count} Drink(s)</Text>
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity
@@ -133,6 +141,17 @@ export default function DrinkLoggerScreen() {
             <TextInput style={styles.input} placeholder="ABV % (e.g., 6.5)" placeholderTextColor="#666" keyboardType="numeric" value={formAbv} onChangeText={setFormAbv} />
 
             <View style={styles.modalButtons}>
+              {isEditing && formIsCustom && (
+                <Button 
+                  title="Delete" 
+                  color="#8B0000" 
+                  onPress={() => {
+                    deletePreset(formId);
+                    setSelectedDrink(presets[0]); // Reset selection to first item
+                    setModalVisible(false);
+                  }} 
+                />
+              )}
               <Button title="Cancel" color="#FF4444" onPress={() => setModalVisible(false)} />
               <Button title="Save" color="#00FF00" onPress={savePreset} />
             </View>
@@ -178,5 +197,8 @@ const styles = StyleSheet.create({
   resetButton: { marginTop: 20, padding: 10, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#333' },
   resetText: { color: '#FF4444', fontSize: 14 },
   backButton: { padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10, backgroundColor: '#00FF00', width: '90%', alignSelf: 'center' },
-  backButtonText: { color: 'white', fontSize: 18, fontWeight: 'bold' }
+  backButtonText: { color: 'black', fontSize: 18, fontWeight: 'bold' },
+  logButton: { backgroundColor: '#00FF00', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, alignItems: 'center', width: '100%' },
+  logButtonText: { color: '#000000', fontSize: 16, fontWeight: 'bold' },
+  disabledButton: { opacity: 0.5 }
 });

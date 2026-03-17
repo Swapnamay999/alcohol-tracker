@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import defaultBeverages from '../constants/beverages.json';
-import { addDrinkLog, getUserDrinks,updateDrinkLogCount, clearUserDrinks } from '../utils/database';
-
+import { addDrinkLog, getUserDrinks, updateDrinkLogCount, clearUserDrinks, getUserPresets, saveUserPreset, deleteCustomPreset, resetEditedPresets } from '../utils/database';
 interface DrinkState {
   activeUserId: number | null; // Tracks the currently selected user in the DB
   userName: string;
@@ -18,7 +17,9 @@ interface DrinkState {
   setActiveUser: (id: number, name: string, height: string, weight: string, age: string, sex: 'Male' | 'Female') => void;
   loadUserDrinks: (userId: number) => void;
   addDrink: (type: string, sizeMl: number, abv: number, count: number) => void;
-  
+  loadUserPresets: (userId: number) => void;
+  deletePreset: (id: string) => void;
+
   addPreset: (newPreset: any) => void;
   updatePreset: (id: string, updatedData: any) => void;
   resetPresets: () => void;
@@ -43,6 +44,27 @@ export const useDrinkStore = create<DrinkState>()((set, get) => ({
   setActiveUser: (id, name, height, weight, age, sex) => {
     set({ activeUserId: id, userName: name, userHeight: height, userWeight: weight, userAge: age, userSex: sex });
     get().loadUserDrinks(id);
+    get().loadUserPresets(id);
+  },
+
+  loadUserPresets: (userId) => {
+    const dbPresets = getUserPresets(userId);
+    let mergedPresets = [...defaultBeverages].map(p => ({ ...p, isCustom: false }));
+
+    dbPresets.forEach((dbP: any) => {
+      const mappedPreset = {
+        id: dbP.id, name: dbP.name, type: dbP.type, 
+        volumeMl: dbP.volume_ml, abv: dbP.abv, icon: dbP.icon, isCustom: dbP.is_custom === 1
+      };
+
+      if (mappedPreset.isCustom) {
+        mergedPresets.push(mappedPreset);
+      } else {
+        mergedPresets = mergedPresets.map(p => p.id === mappedPreset.id ? mappedPreset : p);
+      }
+    });
+
+    set({ presets: mergedPresets });
   },
 
   // Pulls history from SQLite into the active UI state
@@ -78,10 +100,45 @@ export const useDrinkStore = create<DrinkState>()((set, get) => ({
     });
   },
 
-  addPreset: (newPreset) => set((state) => ({ presets: [...state.presets, newPreset] })),
-  updatePreset: (id, updatedData) => set((state) => ({ presets: state.presets.map(p => p.id === id ? { ...p, ...updatedData } : p) })),
-  resetPresets: () => set({ presets: defaultBeverages }),
-  
+  // UPDATED
+  addPreset: (newPreset) => {
+    const state = get();
+    if (!state.activeUserId) return;
+    
+    saveUserPreset(state.activeUserId, newPreset.id, newPreset.name, newPreset.type, newPreset.volumeMl, newPreset.abv, newPreset.icon, 1);
+    set((state) => ({ presets: [...state.presets, { ...newPreset, isCustom: true }] }));
+  },
+
+  // UPDATED
+  updatePreset: (id, updatedData) => {
+    const state = get();
+    if (!state.activeUserId) return;
+
+    const isCustom = state.presets.find(p => p.id === id)?.isCustom ? 1 : 0;
+    
+    saveUserPreset(state.activeUserId, id, updatedData.name, updatedData.type, updatedData.volumeMl, updatedData.abv, updatedData.icon, isCustom);
+    set((state) => ({ 
+      presets: state.presets.map(p => p.id === id ? { ...p, ...updatedData, isCustom: isCustom === 1 } : p) 
+    }));
+  },
+
+  // NEW
+  deletePreset: (id) => {
+    const state = get();
+    if (!state.activeUserId) return;
+    
+    deleteCustomPreset(state.activeUserId, id);
+    set((state) => ({ presets: state.presets.filter(p => p.id !== id) }));
+  },
+
+  // UPDATED
+  resetPresets: () => {
+    const state = get();
+    if (!state.activeUserId) return;
+
+    resetEditedPresets(state.activeUserId);
+    get().loadUserPresets(state.activeUserId); // Reload cleanly from DB and JSON
+  },
   showToast: (message) => {
     set({ toastMessage: message });
     setTimeout(() => set({ toastMessage: null }), 3000);

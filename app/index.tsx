@@ -1,43 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Redirect, router } from 'expo-router'; 
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable } from 'react-native';
+import { Redirect, router } from 'expo-router';
 import { useDrinkStore } from '../store/useDrinkStore';
 import { calculateBAC } from '../utils/bacCalculator';
 import LiquidFill from '../components/LiquidFill';
+import InfoModal from '../components/InfoModal';
 
 export default function DashboardScreen() {
   const { drinksLogged, userHeight, userWeight, userAge, userSex } = useDrinkStore();
   const [currentBac, setCurrentBac] = useState(0.000);
+  const [isInfoVisible, setInfoVisible] = useState(false);
 
   const isProfileComplete = userHeight && userWeight && userAge;
 
-  // 1. All Hooks MUST be declared before any early returns
   useEffect(() => {
-    // Safety check so it doesn't try to calculate with missing data
-    if (!isProfileComplete) return; 
+    if (!isProfileComplete) return;
 
     const updateBac = () => {
       const bac = calculateBAC(
-        drinksLogged, 
-        parseFloat(userHeight), 
-        parseFloat(userWeight), 
-        parseFloat(userAge), 
+        drinksLogged,
+        parseFloat(userHeight),
+        parseFloat(userWeight),
+        parseFloat(userAge),
         userSex
       );
       setCurrentBac(bac);
     };
 
-    updateBac(); 
-    const interval = setInterval(updateBac, 60000); 
+    updateBac();
+    const interval = setInterval(updateBac, 60000);
     return () => clearInterval(interval);
   }, [drinksLogged, userHeight, userWeight, userAge, userSex, isProfileComplete]);
 
-  // 2. Instant Redirection Logic (Now safely AFTER the hooks)
   if (!isProfileComplete) {
     return <Redirect href="/profile" />;
   }
 
-  // 3. Aggregate Drinks by Type
   const drinkSummary = drinksLogged.reduce((acc: any[], drink: any) => {
     const existing = acc.find((d: any) => d.type === drink.type);
     if (existing) {
@@ -47,11 +45,11 @@ export default function DashboardScreen() {
     }
     return acc;
   }, []);
-  
+
   const summaryString = drinkSummary.map(d => `${d.count}x ${d.name || d.type}`).join(' • ') || "No drinks logged today.";
 
   let zoneText = "Sober / Baseline";
-  let themeColor = "#00FF00"; 
+  let themeColor = "#00FF00";
   let warningMessage = "You are currently within safe limits.";
 
   if (currentBac >= 0.01 && currentBac <= 0.05) {
@@ -65,33 +63,94 @@ export default function DashboardScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={[styles.bacCircle, { borderColor: themeColor }]}>
-        <LiquidFill bac={currentBac} color={themeColor} />
-        <Text style={styles.bacLabel}>Current BAC</Text>
-        <Text style={[styles.bacValue, { color: themeColor }]}>{currentBac.toFixed(3)}%</Text>
-        <Text style={[styles.zoneText, { color: themeColor }]}>{zoneText}</Text>
-      </View>
+    <View style={styles.mainWrapper}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        
+        <View style={[styles.bacCircle, { borderColor: themeColor }]}>
+          <LiquidFill bac={currentBac} color={themeColor} />
+          <View style={styles.textOverlay} pointerEvents="none">
+            <Text style={styles.bacLabel}>Current BAC</Text>
+            <Text style={[styles.bacValue, { color: themeColor }]}>{currentBac.toFixed(3)}%</Text>
+            <Text style={[styles.zoneText, { color: themeColor }]}>{zoneText}</Text>
+          </View>
+        </View>
 
-      <View style={[styles.feedbackCard, { borderLeftColor: themeColor }]}>
-        <Text style={styles.feedbackTitle}>Clinical Status</Text>
-        <Text style={styles.feedbackText}>{warningMessage}</Text>
-        <Text style={styles.statsText}>{summaryString}</Text>
-      </View>
+        <View style={[styles.feedbackCard, { borderLeftColor: themeColor }]}>
+          <Text style={styles.feedbackTitle}>Clinical Status</Text>
+          <Text style={styles.feedbackText}>{warningMessage}</Text>
+          <Text style={styles.statsText}>{summaryString}</Text>
+        </View>
 
-      <TouchableOpacity 
-        style={[styles.logDrinkBtn, { backgroundColor: themeColor }]} 
-        onPress={() => router.push('/logger')}
+        <TouchableOpacity
+          style={[styles.logDrinkBtn, { backgroundColor: themeColor }]}
+          onPress={() => router.push('/logger')}
+        >
+          <Text style={styles.logDrinkBtnText}>+ Log a Beverage</Text>
+        </TouchableOpacity>
+        
+        <InfoModal visible={isInfoVisible} onClose={() => setInfoVisible(false)} />
+      </ScrollView>
+
+      {/* Moved outside the ScrollView to anchor to the top right of the page screen */}
+      <Pressable 
+        style={styles.pageInfoButton} 
+        onPress={() => setInfoVisible(true)}
+        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
       >
-        <Text style={styles.logDrinkBtnText}>+ Log a Beverage</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <Text style={styles.infoButtonText}>?</Text>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000', padding: 20 },
-  bacCircle: { height: 300, width: 300, borderRadius: 150, borderWidth: 8, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginTop: 40, marginBottom: 40, backgroundColor: '#111' },
+  mainWrapper: { 
+    flex: 1, 
+    backgroundColor: '#000000' 
+  },
+  scrollContent: { 
+    padding: 20,
+    paddingTop: 60, // Added padding so the bacCircle clears the absolute top button
+  },
+  pageInfoButton: {
+    position: 'absolute',
+    top: 20,    
+    right: 20,  
+    zIndex: 999,
+    elevation: 10,
+    backgroundColor: 'rgba(255,255,255,0.1)', 
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#333'
+  },
+  infoButtonText: { 
+    color: '#00FF00', 
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  bacCircle: { 
+    height: 300, 
+    width: 300, 
+    borderRadius: 150, 
+    borderWidth: 8, 
+    alignSelf: 'center', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginTop: 10, 
+    marginBottom: 40, 
+    backgroundColor: '#111',
+    overflow: 'hidden' // Keeps liquid inside the circle
+  },
+  textOverlay: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
   bacLabel: { color: '#A0A0A0', fontSize: 18, textTransform: 'uppercase', letterSpacing: 2 },
   bacValue: { fontSize: 64, fontWeight: 'bold', marginVertical: 10 },
   zoneText: { fontSize: 20, fontWeight: '600' },

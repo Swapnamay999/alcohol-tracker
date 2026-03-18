@@ -1,19 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable } from 'react-native';
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useNavigation } from 'expo-router';
 import { useDrinkStore } from '../store/useDrinkStore';
 import { calculateBAC } from '../utils/bacCalculator';
 import LiquidFill from '../components/LiquidFill';
 import InfoModal from '../components/InfoModal';
 import EditDrinksModal from '../components/EditDrinksModal';
+import BacGraph from '../components/BacGraph';
 
 export default function DashboardScreen() {
   const { drinksLogged, userHeight, userWeight, userAge, userSex } = useDrinkStore();
   const [currentBac, setCurrentBac] = useState(0.000);
   const [isInfoVisible, setInfoVisible] = useState(false);
   const [isEditModalVisible, setEditModalVisible] = useState(false);
+  const navigation = useNavigation();
 
   const isProfileComplete = userHeight && userWeight && userAge;
+
+  // Disable the swipe gesture for the drawer to prevent it from opening 
+  // when interacting with the BAC graph. The drawer remains accessible via the burger menu.
+  useEffect(() => {
+    navigation.setOptions({
+      swipeEnabled: false,
+    });
+  }, [navigation]);
 
   useEffect(() => {
     if (!isProfileComplete) return;
@@ -67,6 +77,15 @@ export default function DashboardScreen() {
   return (
     <View style={styles.mainWrapper}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.headerRow}>
+          <Pressable
+            style={styles.pageInfoButton}
+            onPress={() => setInfoVisible(true)}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          >
+            <Text style={styles.infoButtonText}>?</Text>
+          </Pressable>
+        </View>
 
         <View style={[styles.bacCircle, { borderColor: themeColor }]}>
           <LiquidFill bac={currentBac} color={themeColor} />
@@ -91,6 +110,8 @@ export default function DashboardScreen() {
           <Text style={styles.statsText}>{summaryString}</Text>
         </View>
 
+        <BacGraph />
+
         <TouchableOpacity
           style={[styles.logDrinkBtn, { backgroundColor: themeColor }]}
           onPress={() => router.push('/logger')}
@@ -104,15 +125,6 @@ export default function DashboardScreen() {
           onClose={() => setEditModalVisible(false)}
         />
       </ScrollView>
-
-      {/* Moved outside the ScrollView to anchor to the top right of the page screen */}
-      <Pressable
-        style={styles.pageInfoButton}
-        onPress={() => setInfoVisible(true)}
-        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-      >
-        <Text style={styles.infoButtonText}>?</Text>
-      </Pressable>
     </View>
   );
 }
@@ -124,14 +136,15 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingTop: 60, // Added padding so the bacCircle clears the absolute top button
+    paddingTop: 20, 
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: -20,
+    zIndex: 1000,
   },
   pageInfoButton: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    zIndex: 999,
-    elevation: 10,
     backgroundColor: 'rgba(255,255,255,0.1)',
     width: 40,
     height: 40,

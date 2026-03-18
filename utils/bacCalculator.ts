@@ -16,7 +16,8 @@ export const calculateWatsonTBW = (heightCm: number, weightKg: number, age: numb
 };
 
 /**
- * Calculates current active BAC using Watson TBW.
+ * Calculates current active BAC using Watson TBW and a time-aware simulation.
+ * This ensures parity with the graph visualization.
  */
 export const calculateBAC = (
   drinks: any[], 
@@ -27,28 +28,42 @@ export const calculateBAC = (
 ): number => {
   if (!drinks || drinks.length === 0 || !heightCm || !weightKg || !age) return 0.000;
 
-  const tbwLiters = calculateWatsonTBW(heightCm, weightKg, age, sex);
+  // Sort drinks by time to process them chronologically
+  const sortedDrinks = [...drinks].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
   
-  // Blood is approximately 80% water. This factor converts the alcohol in the 
-  // total body water to the concentration specifically in the blood.
+  const tbwLiters = calculateWatsonTBW(heightCm, weightKg, age, sex);
   const bloodWaterFraction = 0.8; 
+  const eliminationRatePerHour = 0.015;
 
-  let totalAlcoholGrams = 0;
-  const firstDrinkTime = new Date(drinks[0].time).getTime();
+  let currentBac = 0;
+  const firstDrinkTime = new Date(sortedDrinks[0].time).getTime();
   const currentTime = new Date().getTime();
+  
+  // We simulate from the first drink to now
+  let lastProcessedTime = firstDrinkTime;
 
-  drinks.forEach(drink => {
-    const pureEthanol = calculateGramsOfEthanol(drink.sizeMl, drink.abv) * drink.count;
-    totalAlcoholGrams += pureEthanol;
+  // Process drinks and elimination in order
+  sortedDrinks.forEach((drink, index) => {
+    const drinkTime = new Date(drink.time).getTime();
+    
+    // Only process drinks that have already been "consumed" (not in the future)
+    if (drinkTime <= currentTime) {
+      // 1. Calculate elimination from the last drink (or first drink) until this drink
+      const hoursElapsedSinceLast = Math.max(0, (drinkTime - lastProcessedTime) / (1000 * 60 * 60));
+      currentBac = Math.max(0, currentBac - (hoursElapsedSinceLast * eliminationRatePerHour));
+
+      // 2. Add the alcohol from this drink
+      const pureEthanol = calculateGramsOfEthanol(drink.sizeMl, drink.abv) * (drink.count || 1);
+      const bacGain = (pureEthanol * bloodWaterFraction) / (tbwLiters * 10);
+      currentBac += bacGain;
+
+      lastProcessedTime = drinkTime;
+    }
   });
 
-  // Calculate BAC percentage (g/100mL)
-  // Formula: (Alcohol_grams * bloodWaterFraction) / (TBW_liters * 10)
-  const rawBac = (totalAlcoholGrams * bloodWaterFraction) / (tbwLiters * 10);
-
-  // Apply metabolic elimination (0.015% per hour)
-  const hoursElapsed = (currentTime - firstDrinkTime) / (1000 * 60 * 60);
-  const currentBac = rawBac - (hoursElapsed * 0.015);
+  // 3. Final elimination from the last drink time until the current time
+  const finalHoursElapsed = Math.max(0, (currentTime - lastProcessedTime) / (1000 * 60 * 60));
+  currentBac = Math.max(0, currentBac - (finalHoursElapsed * eliminationRatePerHour));
 
   return parseFloat(Math.max(0, currentBac).toFixed(3));
 };

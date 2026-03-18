@@ -7,6 +7,7 @@ import LiquidFill from '../components/LiquidFill';
 import InfoModal from '../components/InfoModal';
 import EditDrinksModal from '../components/EditDrinksModal';
 import BacGraph from '../components/BacGraph';
+import DrinkHistoryGraph from '../components/DrinkHistoryGraph';
 
 export default function DashboardScreen() {
   const { drinksLogged, userHeight, userWeight, userAge, userSex } = useDrinkStore();
@@ -111,6 +112,8 @@ export default function DashboardScreen() {
         </View>
 
         <BacGraph />
+
+        <DrinkHistoryGraph />
 
         <TouchableOpacity
           style={[styles.logDrinkBtn, { backgroundColor: themeColor }]}

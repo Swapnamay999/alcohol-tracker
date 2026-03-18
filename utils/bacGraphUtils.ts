@@ -74,3 +74,51 @@ export const generateBacDataPoints = (
 
   return points;
 };
+
+export interface DrinkBarData {
+  value: number;
+  label: string;
+  frontColor: string;
+}
+
+/**
+ * Groups drinks by hour to show consumption frequency.
+ */
+export const generateDrinkHistoryData = (drinks: any[]): DrinkBarData[] => {
+  if (!drinks || drinks.length === 0) return [];
+
+  const hourlyCounts: { [key: string]: number } = {};
+  
+  // Initialize last 6-8 hours or use the range of drinks
+  const sorted = [...drinks].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+  const firstTime = new Date(sorted[0].time);
+  const lastTime = new Date();
+  
+  // Fill in all hours between first drink and now
+  let curr = new Date(firstTime);
+  curr.setMinutes(0, 0, 0);
+  
+  const end = new Date(lastTime);
+  end.setHours(end.getHours() + 1);
+  
+  while (curr <= end) {
+    const hourLabel = `${curr.getHours().toString().padStart(2, '0')}:00`;
+    hourlyCounts[hourLabel] = 0;
+    curr.setHours(curr.getHours() + 1);
+  }
+
+  // Aggregate counts
+  drinks.forEach(d => {
+    const date = new Date(d.time);
+    const hourLabel = `${date.getHours().toString().padStart(2, '0')}:00`;
+    if (hourlyCounts[hourLabel] !== undefined) {
+      hourlyCounts[hourLabel] += d.count;
+    }
+  });
+
+  return Object.keys(hourlyCounts).map(hour => ({
+    value: hourlyCounts[hour],
+    label: hour,
+    frontColor: hourlyCounts[hour] > 0 ? '#00FF00' : '#333',
+  }));
+};

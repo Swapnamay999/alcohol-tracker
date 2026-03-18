@@ -56,6 +56,26 @@ export const initDB = () => {
   }
 };
 
+/**
+ * Deletes drink logs older than 30 days to save space.
+ */
+export const cleanupOldDrinks = () => {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const isoString = thirtyDaysAgo.toISOString();
+
+    const statement = db.prepareSync('DELETE FROM drink_logs WHERE timestamp < ?');
+    const result = statement.executeSync([isoString]);
+    
+    if (result.changes > 0) {
+      console.log(`Cleaned up ${result.changes} old drink records.`);
+    }
+  } catch (error) {
+    console.error('Failed to cleanup old drinks:', error);
+  }
+};
+
 export const getDB = () => db;
 
 

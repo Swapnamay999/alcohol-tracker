@@ -3,10 +3,11 @@ import { Drawer } from 'expo-router/drawer';
 import { GluestackUIProvider } from '@gluestack-ui/themed';
 import { config } from '@gluestack-ui/config';
 import ToastOverlay from '../components/ToastOverlay';
-import { initDB } from '../utils/database';
+import { initDB, cleanupOldDrinks } from '../utils/database';
 
-// Initialize the database when the app starts
+// Initialize the database and cleanup old records when the app starts
 initDB();
+cleanupOldDrinks();
 
 export default function RootLayout() {
   return (

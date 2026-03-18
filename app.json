@@ -43,7 +43,10 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "72c58364-1bb4-40da-a71d-f7c5e9ae77aa"
+      }
     },
     "owner": "rahul999s-organization"
   }

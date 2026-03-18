@@ -18,6 +18,11 @@ export default function DashboardScreen() {
 
   const isProfileComplete = userHeight && userWeight && userAge;
 
+  // Sync SQLite data with the persisted user on mount
+  useEffect(() => {
+    useDrinkStore.getState().hydrate();
+  }, []);
+
   // Disable the swipe gesture for the drawer to prevent it from opening 
   // when interacting with the BAC graph. The drawer remains accessible via the burger menu.
   useEffect(() => {

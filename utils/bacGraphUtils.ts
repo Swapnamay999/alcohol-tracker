@@ -39,6 +39,14 @@ export const generateBacDataPoints = (
   // We'll simulate forward until BAC is zero or max 24 hours from first drink
   const maxSimulationTime = firstDrinkTime + (24 * 60 * 60 * 1000);
 
+  // Add initial baseline point (0 BAC) at the exact moment of first drink
+  const initialDate = new Date(firstDrinkTime);
+  points.push({
+    value: 0,
+    label: `${initialDate.getHours().toString().padStart(2, '0')}:${initialDate.getMinutes().toString().padStart(2, '0')}`,
+    timeStamp: firstDrinkTime
+  });
+
   while (simulationTime <= maxSimulationTime) {
     // 1. Calculate elimination since last point
     const hoursElapsed = (simulationTime - lastSimulationTime) / (1000 * 60 * 60);
@@ -48,20 +56,27 @@ export const generateBacDataPoints = (
     sortedDrinks.forEach(drink => {
       const drinkTime = new Date(drink.time).getTime();
       // If the drink was consumed exactly at this time, or within the window since lastSimulationTime
-      if (drinkTime > lastSimulationTime && drinkTime <= simulationTime) {
-        const grams = calculateGramsOfEthanol(drink.sizeMl, drink.abv) * drink.count;
+      // Special case: if it's the very first point, include drinks at that exact timestamp
+      if (
+        (drinkTime > lastSimulationTime && drinkTime <= simulationTime) ||
+        (points.length === 1 && drinkTime === firstDrinkTime)
+      ) {
+        const grams = calculateGramsOfEthanol(drink.sizeMl, drink.abv) * (drink.count || 1);
         const bacGain = (grams * bloodWaterFraction) / (tbwLiters * 10);
         currentBac += bacGain;
       }
     });
 
-    // 3. Store point
-    const date = new Date(simulationTime);
-    points.push({
-      value: parseFloat(currentBac.toFixed(4)),
-      label: `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`,
-      timeStamp: simulationTime
-    });
+    // 3. Store point (skip if it's exactly the first drink time because we added a 0 baseline there already, 
+    // unless BAC is now > 0, which it should be)
+    if (simulationTime > firstDrinkTime || currentBac > 0) {
+      const date = new Date(simulationTime);
+      points.push({
+        value: parseFloat(currentBac.toFixed(4)),
+        label: `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`,
+        timeStamp: simulationTime
+      });
+    }
 
     // 4. Update last time
     lastSimulationTime = simulationTime;
